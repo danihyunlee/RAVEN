@@ -38,8 +38,9 @@ class dataset(Dataset):
         # Debug: Print embedding dictionary info
         embedding_dict = self.embeddings.item() if hasattr(self.embeddings, 'item') else self.embeddings
         if isinstance(embedding_dict, dict):
-            print(f"Loaded embedding dictionary with {len(embedding_dict)} elements")
-            print(f"Sample elements: {list(embedding_dict.keys())[:10]}")
+            # print(f"Loaded embedding dictionary with {len(embedding_dict)} elements")
+            # print(f"Sample elements: {list(embedding_dict.keys())[:10]}")
+            pass
         else:
             print(f"Warning: Embeddings is not a dictionary, type: {type(embedding_dict)}")
         
@@ -109,7 +110,7 @@ class dataset(Dataset):
             if element != '/':
                 # Stop if we've filled all 6 slots
                 if element_idx >= 6:
-                    print(f"Warning: Structure has more than 6 elements, truncating at element {element_idx}")
+                    # print(f"Warning: Structure has more than 6 elements, truncating at element {element_idx}")
                     break
                 
                 # Handle byte strings (common when loading Python 2 data in Python 3)
@@ -130,7 +131,7 @@ class dataset(Dataset):
                     for key in embedding_dict.keys():
                         if element_str in key or key.startswith(element_str):
                             element_embedding = embedding_dict[key]
-                            print(f"Found partial match: '{element_str}' -> '{key}'")
+                            # print(f"Found partial match: '{element_str}' -> '{key}'")
                             break
                 
                 # If still not found, try stripping any byte prefixes
@@ -139,8 +140,8 @@ class dataset(Dataset):
                     element_embedding = embedding_dict.get(clean_element)
                 
                 if element_embedding is None:
-                    print(f"Warning: Element '{element}' (decoded: '{element_str}') not found in embedding dictionary. Using zero vector.")
-                    print(f"Available elements: {list(embedding_dict.keys())[:10]}...")
+                    # print(f"Warning: Element '{element}' (decoded: '{element_str}') not found in embedding dictionary. Using zero vector.")
+                    # print(f"Available elements: {list(embedding_dict.keys())[:10]}...")
                     # Use a zero vector as fallback
                     element_embedding = np.zeros(300, dtype=np.float32)
                 else:
@@ -149,12 +150,12 @@ class dataset(Dataset):
                         try:
                             element_embedding = np.array(element_embedding, dtype=np.float32)
                         except Exception as e:
-                            print(f"Warning: Could not convert embedding for '{element}' to array: {e}")
+                            # print(f"Warning: Could not convert embedding for '{element}' to array: {e}")
                             element_embedding = np.zeros(300, dtype=np.float32)
                     
                     # Ensure correct shape
                     if element_embedding.shape != (300,):
-                        print(f"Warning: Embedding for '{element}' has wrong shape {element_embedding.shape}, expected (300,)")
+                        # print(f"Warning: Embedding for '{element}' has wrong shape {element_embedding.shape}, expected (300,)")
                         if len(element_embedding.shape) > 1:
                             element_embedding = element_embedding.flatten()
                         if element_embedding.size != 300:
@@ -173,9 +174,11 @@ class dataset(Dataset):
         if element_idx == 6:
             indicator[0] = 1.
         elif element_idx > 6:
-            print(f"Warning: Structure had {element_idx} elements, truncated to 6")
+            # print(f"Warning: Structure had {element_idx} elements, truncated to 6")
+            pass
         else:
-            print(f"Warning: Structure had only {element_idx} elements, padded with zeros")
+            # print(f"Warning: Structure had only {element_idx} elements, padded with zeros")
+            pass
         # if meta_target.dtype == np.int8:
         #     meta_target = meta_target.astype(np.uint8)
         # if meta_structure.dtype == np.int8:
