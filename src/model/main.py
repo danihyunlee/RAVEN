@@ -107,7 +107,8 @@ def train(epoch):
         
         try:
             loss, acc = model.train_(image, target, meta_target, meta_structure, embedding, indicator)
-            print('Train: Epoch:{}, Batch:{}, Loss:{:.6f}, Acc:{:.4f}.'.format(epoch, batch_idx, loss, acc))
+            # Remove per-batch printing
+            # print('Train: Epoch:{}, Batch:{}, Loss:{:.6f}, Acc:{:.4f}.'.format(epoch, batch_idx, loss, acc))
             loss_all += loss
             acc_all += acc
         except Exception as e:
@@ -115,7 +116,9 @@ def train(epoch):
             continue
             
     if counter > 0:
-        print("Avg Training Loss: {:.6f}".format(loss_all/float(counter)))
+        avg_loss = loss_all/float(counter)
+        avg_acc = acc_all/float(counter)
+        print('Train: Epoch:{}, Avg Loss:{:.6f}, Avg Acc:{:.4f}.'.format(epoch, avg_loss, avg_acc))
 
 def validate(epoch):
     model.eval()
@@ -138,6 +141,7 @@ def validate(epoch):
             
             try:
                 loss, acc = model.validate_(image, target, meta_target, meta_structure, embedding, indicator)
+                # Remove per-batch printing
                 # print('Validate: Epoch:{}, Batch:{}, Loss:{:.6f}, Acc:{:.4f}.'.format(epoch, batch_idx, loss, acc)) 
                 loss_all += loss
                 acc_all += acc
@@ -146,8 +150,10 @@ def validate(epoch):
                 continue
                 
     if counter > 0:
-        print("Total Validation Loss: {:.6f}, Acc: {:.4f}".format(loss_all/float(counter), acc_all/float(counter)))
-    return loss_all/float(counter), acc_all/float(counter)
+        avg_loss = loss_all/float(counter)
+        avg_acc = acc_all/float(counter)
+        print("Validate: Epoch:{}, Avg Loss: {:.6f}, Avg Acc: {:.4f}".format(epoch, avg_loss, avg_acc))
+    return avg_loss, avg_acc
 
 def test(epoch):
     model.eval()
@@ -168,6 +174,7 @@ def test(epoch):
             
             try:
                 acc = model.test_(image, target, meta_target, meta_structure, embedding, indicator)
+                # Remove per-batch printing
                 # print('Test: Epoch:{}, Batch:{}, Acc:{:.4f}.'.format(epoch, batch_idx, acc))  
                 acc_all += acc
             except Exception as e:
@@ -175,8 +182,9 @@ def test(epoch):
                 continue
                 
     if counter > 0:
-        print("Total Testing Acc: {:.4f}".format(acc_all / float(counter)))
-    return acc_all/float(counter)
+        avg_acc = acc_all/float(counter)
+        print("Test: Epoch:{}, Avg Acc: {:.4f}".format(epoch, avg_acc))
+    return avg_acc
 
 def main():
     for epoch in range(0, args.epochs):
