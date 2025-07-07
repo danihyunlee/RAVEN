@@ -106,10 +106,34 @@ class dataset(Dataset):
         
         for element in structure:
             if element != '/':
-                # Handle missing elements in embedding dictionary
-                element_embedding = embedding_dict.get(element)
+                # Handle byte strings (common when loading Python 2 data in Python 3)
+                if isinstance(element, bytes):
+                    element_str = element.decode('utf-8')
+                else:
+                    element_str = str(element)
+                
+                # Try to find the element in the embedding dictionary
+                element_embedding = embedding_dict.get(element_str)
+                
+                # If not found, try with byte string version
+                if element_embedding is None and isinstance(element, bytes):
+                    element_embedding = embedding_dict.get(element)
+                
+                # If still not found, try partial matches
                 if element_embedding is None:
-                    print(f"Warning: Element '{element}' not found in embedding dictionary. Using zero vector.")
+                    for key in embedding_dict.keys():
+                        if element_str in key or key.startswith(element_str):
+                            element_embedding = embedding_dict[key]
+                            print(f"Found partial match: '{element_str}' -> '{key}'")
+                            break
+                
+                # If still not found, try stripping any byte prefixes
+                if element_embedding is None and element_str.startswith("b'"):
+                    clean_element = element_str[2:-1]  # Remove b'...'
+                    element_embedding = embedding_dict.get(clean_element)
+                
+                if element_embedding is None:
+                    print(f"Warning: Element '{element}' (decoded: '{element_str}') not found in embedding dictionary. Using zero vector.")
                     print(f"Available elements: {list(embedding_dict.keys())[:10]}...")
                     # Use a zero vector as fallback
                     element_embedding = np.zeros(300, dtype=np.float32)
