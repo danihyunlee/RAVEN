@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
 from utility.dataset_utility import dataset, ToTensor
-from cnn_mlp import CNN_MLP
+from cnn_mlp import CNN_MLP, CNN_MLP_MIN
 from resnet18 import Resnet18_MLP
 
 parser = argparse.ArgumentParser(description='our_model')
@@ -33,6 +33,9 @@ parser.add_argument('--beta2', type=float, default=0.999)
 parser.add_argument('--epsilon', type=float, default=1e-8)
 parser.add_argument('--meta_alpha', type=float, default=0.0)
 parser.add_argument('--meta_beta', type=float, default=0.0)
+parser.add_argument('--wandb', action='store_true', help='Enable Weights & Biases logging')
+parser.add_argument('--wandb_project', type=str, default='RAVEN', help='WandB project name')
+parser.add_argument('--wandb_name', type=str, default=None, help='WandB run name')
 
 
 args = parser.parse_args()
@@ -40,6 +43,35 @@ args = parser.parse_args()
 # Set random seeds for reproducibility
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
+
+# Initialize wandb if enabled
+if args.wandb:
+    try:
+        import wandb
+        wandb.init(
+            project=args.wandb_project,
+            name=args.wandb_name,
+            config={
+                'model': args.model,
+                'epochs': args.epochs,
+                'batch_size': args.batch_size,
+                'lr': args.lr,
+                'beta1': args.beta1,
+                'beta2': args.beta2,
+                'epsilon': args.epsilon,
+                'meta_alpha': args.meta_alpha,
+                'meta_beta': args.meta_beta,
+                'img_size': args.img_size,
+                'seed': args.seed,
+            }
+        )
+        print(f"✅ WandB logging enabled for project: {args.wandb_project}")
+    except ImportError:
+        print("❌ WandB not installed. Install with: pip install wandb")
+        args.wandb = False
+    except Exception as e:
+        print(f"❌ Failed to initialize WandB: {e}")
+        args.wandb = False
 
 # Device setup
 args.cuda = torch.cuda.is_available()
@@ -74,6 +106,8 @@ testloader = DataLoader(test, batch_size=args.batch_size, shuffle=False, num_wor
 
 if args.model == "CNN_MLP":
     model = CNN_MLP(args)
+elif args.model == "CNN_MLP_MIN":
+    model = CNN_MLP_MIN(args)
 elif args.model == "Resnet18_MLP":
     model = Resnet18_MLP(args)
     
@@ -119,6 +153,17 @@ def train(epoch):
         avg_loss = loss_all/float(counter)
         avg_acc = acc_all/float(counter)
         print('Train: Epoch:{}, Avg Loss:{:.6f}, Avg Acc:{:.4f}.'.format(epoch, avg_loss, avg_acc))
+        
+        # Log to wandb if enabled
+        if args.wandb:
+            wandb.log({
+                'train/loss': avg_loss,
+                'train/accuracy': avg_acc,
+                'epoch': epoch
+            })
+        
+        return avg_loss, avg_acc
+    return 0.0, 0.0
 
 def validate(epoch):
     model.eval()
@@ -153,7 +198,17 @@ def validate(epoch):
         avg_loss = loss_all/float(counter)
         avg_acc = acc_all/float(counter)
         print("Validate: Epoch:{}, Avg Loss: {:.6f}, Avg Acc: {:.4f}".format(epoch, avg_loss, avg_acc))
-    return avg_loss, avg_acc
+        
+        # Log to wandb if enabled
+        if args.wandb:
+            wandb.log({
+                'val/loss': avg_loss,
+                'val/accuracy': avg_acc,
+                'epoch': epoch
+            })
+        
+        return avg_loss, avg_acc
+    return 0.0, 0.0
 
 def test(epoch):
     model.eval()
@@ -184,17 +239,43 @@ def test(epoch):
     if counter > 0:
         avg_acc = acc_all/float(counter)
         print("Test: Epoch:{}, Avg Acc: {:.4f}".format(epoch, avg_acc))
-    return avg_acc
+        
+        # Log to wandb if enabled
+        if args.wandb:
+            wandb.log({
+                'test/accuracy': avg_acc,
+                'epoch': epoch
+            })
+        
+        return avg_acc
+    return 0.0
 
 def main():
     for epoch in range(0, args.epochs):
-        train(epoch)
-        avg_loss, avg_acc = validate(epoch)
-        test(epoch)
+        train_loss, train_acc = train(epoch)
+        val_loss, val_acc = validate(epoch)
+        test_acc = test(epoch)
+        
+        # Log combined metrics to wandb if enabled
+        if args.wandb:
+            wandb.log({
+                'epoch_summary/train_loss': train_loss,
+                'epoch_summary/train_accuracy': train_acc,
+                'epoch_summary/val_loss': val_loss,
+                'epoch_summary/val_accuracy': val_acc,
+                'epoch_summary/test_accuracy': test_acc,
+                'epoch': epoch
+            })
+        
         try:
-            model.save_model(args.save, epoch, avg_acc, avg_loss)
+            model.save_model(args.save, epoch, val_acc, val_loss)
         except Exception as e:
             print(f"Warning: Could not save model: {e}")
+    
+    # Final wandb logging
+    if args.wandb:
+        wandb.finish()
+        print("✅ WandB logging completed")
 
 
 if __name__ == '__main__':

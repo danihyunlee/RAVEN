@@ -7,3 +7,4 @@ matplotlib
 scikit-image
 opencv-contrib-python
 tqdm
+wandb>=0.15.0

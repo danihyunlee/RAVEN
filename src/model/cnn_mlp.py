@@ -92,4 +92,46 @@ class CNN_MLP(BasicModel):
             print(f"Warning: Could not save model to {path}: {e}")
             raise e
 
+class CNN_MLP_MIN(BasicModel):
+    def __init__(self, args):
+        super(CNN_MLP_MIN, self).__init__(args)
+        self.conv = conv_module()
+        self.mlp = mlp_module()
+        self.optimizer = optim.Adam(self.parameters(), lr=args.lr, betas=(args.beta1, args.beta2), eps=args.epsilon)
+
+    def compute_loss(self, output, target, meta_target, meta_structure):
+        pred = output[0]
+        loss = F.cross_entropy(pred, target)
+        return loss
+
+    def forward(self, x, embedding, indicator):
+        # Ensure input is properly shaped for the conv module
+        if x.dim() == 4 and x.size(1) != 16:
+            # If input is (batch, channels, height, width) but not 16 channels
+            # Reshape to expected format
+            batch_size = x.size(0)
+            x = x.view(batch_size, 16, 80, 80)
+        
+        # Direct CNN -> MLP pipeline without tree network
+        features = self.conv(x)
+        score = self.mlp(features)
+        return score, None
+
+    def load_model(self, path, epoch):
+        try:
+            state_dict = torch.load(path+'{}_epoch_{}.pth'.format(self.name, epoch), 
+                                  map_location='cpu')['state_dict']
+            self.load_state_dict(state_dict)
+        except Exception as e:
+            print(f"Warning: Could not load model from {path}: {e}")
+            raise e
+
+    def save_model(self, path, epoch, acc, loss):
+        try:
+            torch.save({'state_dict': self.state_dict(), 'acc': acc, 'loss': loss}, 
+                      path+'{}_epoch_{}.pth'.format(self.name, epoch))
+        except Exception as e:
+            print(f"Warning: Could not save model to {path}: {e}")
+            raise e
+
     
