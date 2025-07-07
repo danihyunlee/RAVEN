@@ -14,7 +14,7 @@ from torchvision import transforms, utils
 
 from utility.dataset_utility import dataset, ToTensor
 from cnn_mlp import CNN_MLP, CNN_MLP_MIN
-from resnet18 import Resnet18_MLP
+from resnet18 import Resnet18_MLP, Resnet18_MLP_MIN
 
 parser = argparse.ArgumentParser(description='our_model')
 parser.add_argument('--model', type=str, default='Resnet18_MLP')
@@ -110,6 +110,8 @@ elif args.model == "CNN_MLP_MIN":
     model = CNN_MLP_MIN(args)
 elif args.model == "Resnet18_MLP":
     model = Resnet18_MLP(args)
+elif args.model == "Resnet18_MLP_MIN":
+    model = Resnet18_MLP_MIN(args)
     
 if args.resume:
     try:

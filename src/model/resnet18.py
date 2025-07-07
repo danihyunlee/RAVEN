@@ -97,4 +97,56 @@ class Resnet18_MLP(BasicModel):
         except Exception as e:
             print(f"Warning: Could not save model to {path}: {e}")
             raise e
+
+class Resnet18_MLP_MIN(BasicModel):
+    def __init__(self, args):
+        super(Resnet18_MLP_MIN, self).__init__(args)
+        self.resnet18 = models.resnet18(pretrained=False)
+        self.resnet18.conv1 = nn.Conv2d(16, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.resnet18.fc = identity()
+        self.mlp = mlp_module()
+        # No fc_tree_net - removed for minimal version
+        self.optimizer = optim.Adam(self.parameters(), lr=args.lr, betas=(args.beta1, args.beta2), eps=args.epsilon)
+        self.meta_alpha = args.meta_alpha
+        self.meta_beta = args.meta_beta
+
+    def compute_loss(self, output, target, meta_target, meta_structure):
+        pred = output[0]
+        target_loss = F.cross_entropy(pred, target)
+        return target_loss
+
+    def forward(self, x, embedding, indicator):
+        # Ensure input is properly shaped for ResNet18
+        if x.dim() == 4 and x.size(1) != 16:
+            # If input is (batch, channels, height, width) but not 16 channels
+            # Reshape to expected format
+            batch_size = x.size(0)
+            x = x.view(batch_size, 16, 224, 224)
+        
+        # Direct ResNet18 -> MLP pipeline without tree network
+        features = self.resnet18(x)
+        output = self.mlp(features)
+        pred = output[:,0:8]
+        meta_target_pred = output[:,8:17]
+        meta_struct_pred = output[:,17:38]
+        return pred, meta_target_pred, meta_struct_pred
+
+    def load_model(self, path, epoch):
+        """Override load_model to handle potential device issues"""
+        try:
+            state_dict = torch.load(path+'{}_epoch_{}.pth'.format(self.name, epoch), 
+                                  map_location='cpu')['state_dict']
+            self.load_state_dict(state_dict)
+        except Exception as e:
+            print(f"Warning: Could not load model from {path}: {e}")
+            raise e
+
+    def save_model(self, path, epoch, acc, loss):
+        """Override save_model to handle potential device issues"""
+        try:
+            torch.save({'state_dict': self.state_dict(), 'acc': acc, 'loss': loss}, 
+                      path+'{}_epoch_{}.pth'.format(self.name, epoch))
+        except Exception as e:
+            print(f"Warning: Could not save model to {path}: {e}")
+            raise e
     
