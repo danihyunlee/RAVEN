@@ -64,11 +64,32 @@ class CNN_MLP(BasicModel):
 
     def forward(self, x, embedding, indicator):
         alpha = 1.0
-        features = self.conv(x.view(-1, 16, 80, 80))
+        if x.dim() == 4 and x.size(1) != 16:
+            batch_size = x.size(0)
+            x = x.view(batch_size, 16, 80, 80)
+        
+        features = self.conv(x)
         features_tree = features.view(-1, 1, 512)
         features_tree = self.fc_tree_net(features_tree, embedding, indicator)
         final_features = features + alpha * features_tree
         score = self.mlp(final_features)
         return score, None
+
+    def load_model(self, path, epoch):
+        try:
+            state_dict = torch.load(path+'{}_epoch_{}.pth'.format(self.name, epoch), 
+                                  map_location='cpu')['state_dict']
+            self.load_state_dict(state_dict)
+        except Exception as e:
+            print(f"Warning: Could not load model from {path}: {e}")
+            raise e
+
+    def save_model(self, path, epoch, acc, loss):
+        try:
+            torch.save({'state_dict': self.state_dict(), 'acc': acc, 'loss': loss}, 
+                      path+'{}_epoch_{}.pth'.format(self.name, epoch))
+        except Exception as e:
+            print(f"Warning: Could not save model to {path}: {e}")
+            raise e
 
     
