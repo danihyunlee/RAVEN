@@ -1,6 +1,10 @@
 import os
+import sys
 import numpy as np
 import argparse
+
+# Add the current directory to Python path to find local modules
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import torch
 import torch.nn as nn
@@ -8,7 +12,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
-from utility import dataset, ToTensor
+from utility.dataset_utility import dataset, ToTensor
 from cnn_mlp import CNN_MLP
 from resnet18 import Resnet18_MLP
 

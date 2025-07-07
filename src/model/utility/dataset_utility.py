@@ -1,7 +1,7 @@
 import os
 import glob
 import numpy as np
-from scipy import misc
+from PIL import Image
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -37,7 +37,7 @@ class dataset(Dataset):
         if self.shuffle:
             context = image[:8, :, :]
             choices = image[8:, :, :]
-            indices = range(8)
+            indices = list(range(8))  # Convert to list for Python 3 compatibility
             np.random.shuffle(indices)
             new_target = indices.index(target)
             new_choices = choices[indices, :, :]
@@ -46,7 +46,10 @@ class dataset(Dataset):
         
         resize_image = []
         for idx in range(0, 16):
-            resize_image.append(misc.imresize(image[idx,:,:], (self.img_size, self.img_size)))
+            # Use PIL for resizing instead of deprecated scipy.misc.imresize
+            img = Image.fromarray(image[idx,:,:].astype(np.uint8))
+            img_resized = img.resize((self.img_size, self.img_size), Image.BILINEAR)
+            resize_image.append(np.array(img_resized))
         resize_image = np.stack(resize_image)
         # image = resize(image, (16, 128, 128))
         # meta_matrix = data["mata_matrix"]
