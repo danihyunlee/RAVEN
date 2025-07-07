@@ -35,6 +35,14 @@ class dataset(Dataset):
                 self.embeddings = np.load(os.path.join(root_dir, 'embedding.npy'), 
                                         allow_pickle=True)
         
+        # Debug: Print embedding dictionary info
+        embedding_dict = self.embeddings.item() if hasattr(self.embeddings, 'item') else self.embeddings
+        if isinstance(embedding_dict, dict):
+            print(f"Loaded embedding dictionary with {len(embedding_dict)} elements")
+            print(f"Sample elements: {list(embedding_dict.keys())[:10]}")
+        else:
+            print(f"Warning: Embeddings is not a dictionary, type: {type(embedding_dict)}")
+        
         self.shuffle = shuffle
 
     def __len__(self):
@@ -83,9 +91,52 @@ class dataset(Dataset):
         embedding = torch.zeros((6, 300), dtype=torch.float)
         indicator = torch.zeros(1, dtype=torch.float)
         element_idx = 0
+        
+        # Get the embedding dictionary with robust handling
+        try:
+            embedding_dict = self.embeddings.item() if hasattr(self.embeddings, 'item') else self.embeddings
+        except Exception as e:
+            print(f"Warning: Could not extract embedding dictionary: {e}")
+            embedding_dict = {}
+        
+        # Ensure embedding_dict is actually a dictionary
+        if not isinstance(embedding_dict, dict):
+            print(f"Warning: Embedding dict is not a dictionary, type: {type(embedding_dict)}")
+            embedding_dict = {}
+        
         for element in structure:
             if element != '/':
-                embedding[element_idx, :] = torch.tensor(self.embeddings.item().get(element), dtype=torch.float)
+                # Handle missing elements in embedding dictionary
+                element_embedding = embedding_dict.get(element)
+                if element_embedding is None:
+                    print(f"Warning: Element '{element}' not found in embedding dictionary. Using zero vector.")
+                    print(f"Available elements: {list(embedding_dict.keys())[:10]}...")
+                    # Use a zero vector as fallback
+                    element_embedding = np.zeros(300, dtype=np.float32)
+                else:
+                    # Ensure the embedding is a numpy array
+                    if not isinstance(element_embedding, np.ndarray):
+                        try:
+                            element_embedding = np.array(element_embedding, dtype=np.float32)
+                        except Exception as e:
+                            print(f"Warning: Could not convert embedding for '{element}' to array: {e}")
+                            element_embedding = np.zeros(300, dtype=np.float32)
+                    
+                    # Ensure correct shape
+                    if element_embedding.shape != (300,):
+                        print(f"Warning: Embedding for '{element}' has wrong shape {element_embedding.shape}, expected (300,)")
+                        if len(element_embedding.shape) > 1:
+                            element_embedding = element_embedding.flatten()
+                        if element_embedding.size != 300:
+                            # Pad or truncate to 300 dimensions
+                            if element_embedding.size > 300:
+                                element_embedding = element_embedding[:300]
+                            else:
+                                padded = np.zeros(300, dtype=np.float32)
+                                padded[:element_embedding.size] = element_embedding
+                                element_embedding = padded
+                
+                embedding[element_idx, :] = torch.tensor(element_embedding, dtype=torch.float)
                 element_idx += 1
         if element_idx == 6:
             indicator[0] = 1.
