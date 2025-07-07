@@ -88,6 +88,7 @@ class dataset(Dataset):
         # image = resize(image, (16, 128, 128))
         # meta_matrix = data["mata_matrix"]
 
+        # Create fixed-size embedding tensor (6, 300) as expected by the model
         embedding = torch.zeros((6, 300), dtype=torch.float)
         indicator = torch.zeros(1, dtype=torch.float)
         element_idx = 0
@@ -106,6 +107,11 @@ class dataset(Dataset):
         
         for element in structure:
             if element != '/':
+                # Stop if we've filled all 6 slots
+                if element_idx >= 6:
+                    print(f"Warning: Structure has more than 6 elements, truncating at element {element_idx}")
+                    break
+                
                 # Handle byte strings (common when loading Python 2 data in Python 3)
                 if isinstance(element, bytes):
                     element_str = element.decode('utf-8')
@@ -162,8 +168,14 @@ class dataset(Dataset):
                 
                 embedding[element_idx, :] = torch.tensor(element_embedding, dtype=torch.float)
                 element_idx += 1
+        
+        # Set indicator based on whether we have exactly 6 elements
         if element_idx == 6:
             indicator[0] = 1.
+        elif element_idx > 6:
+            print(f"Warning: Structure had {element_idx} elements, truncated to 6")
+        else:
+            print(f"Warning: Structure had only {element_idx} elements, padded with zeros")
         # if meta_target.dtype == np.int8:
         #     meta_target = meta_target.astype(np.uint8)
         # if meta_structure.dtype == np.int8:
