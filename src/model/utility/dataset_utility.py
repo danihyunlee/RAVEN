@@ -19,7 +19,22 @@ class dataset(Dataset):
         self.file_names = [f for f in glob.glob(os.path.join(root_dir, "*", "*.npz")) \
                             if dataset_type in f]
         self.img_size = img_size
-        self.embeddings = np.load(os.path.join(root_dir, 'embedding.npy'), allow_pickle=True)
+        
+        # Fix for Python 3 pickle encoding issues
+        try:
+            self.embeddings = np.load(os.path.join(root_dir, 'embedding.npy'), 
+                                    allow_pickle=True, encoding='latin1')
+        except UnicodeError:
+            # Fallback for newer Python versions
+            try:
+                self.embeddings = np.load(os.path.join(root_dir, 'embedding.npy'), 
+                                        allow_pickle=True, encoding='bytes')
+            except Exception as e:
+                print(f"Warning: Could not load embedding.npy with encoding='bytes': {e}")
+                # Last resort: try without encoding
+                self.embeddings = np.load(os.path.join(root_dir, 'embedding.npy'), 
+                                        allow_pickle=True)
+        
         self.shuffle = shuffle
 
     def __len__(self):
@@ -27,7 +42,18 @@ class dataset(Dataset):
 
     def __getitem__(self, idx):
         data_path = self.file_names[idx]
-        data = np.load(data_path)
+        
+        # Fix for Python 3 pickle encoding issues with data files
+        try:
+            data = np.load(data_path, allow_pickle=True, encoding='latin1')
+        except UnicodeError:
+            try:
+                data = np.load(data_path, allow_pickle=True, encoding='bytes')
+            except Exception as e:
+                print(f"Warning: Could not load {data_path} with encoding='bytes': {e}")
+                # Last resort: try without encoding
+                data = np.load(data_path, allow_pickle=True)
+        
         image = data["image"].reshape(16, 160, 160)
         target = data["target"]
         structure = data["structure"]
